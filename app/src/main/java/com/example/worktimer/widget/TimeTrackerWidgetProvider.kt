@@ -117,7 +117,7 @@ class TimeTrackerWidgetProvider : AppWidgetProvider() {
             
             views.setTextViewText(R.id.tv_widget_time_left, formatTimeLeft(timeLeftMs))
 
-            // Toggle pending intent
+            // Toggle pending intent (Pill only)
             val intent = Intent(context, TimeTrackerWidgetProvider::class.java).apply {
                 action = ACTION_TOGGLE
             }
@@ -126,6 +126,16 @@ class TimeTrackerWidgetProvider : AppWidgetProvider() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             views.setOnClickPendingIntent(R.id.fl_toggle_container, pendingIntent)
+
+            // Open App intent (Root background)
+            val openAppIntent = Intent(context, com.example.worktimer.MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            val openAppPendingIntent = PendingIntent.getActivity(
+                context, 100, openAppIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            views.setOnClickPendingIntent(R.id.widget_root, openAppPendingIntent)
 
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }
