@@ -276,8 +276,9 @@ private fun SessionControlCard(
                     fontWeight = FontWeight.Bold,
                     color = TextPrimary
                 )
+                val targetLabel = uiState.targetHours.toString().removeSuffix(".0")
                 Text(
-                    text = "${uiState.targetHours.toInt()}h Target",
+                    text = "${targetLabel}h Target",
                     fontSize = 12.sp,
                     color = PrimaryBlue,
                     fontWeight = FontWeight.Medium,
@@ -500,11 +501,12 @@ private fun TodayFocusCard(uiState: TimeTrackerUiState) {
                 strokeCap = StrokeCap.Round
             )
             Spacer(modifier = Modifier.height(6.dp))
+            val targetLabel = uiState.targetHours.toString().removeSuffix(".0")
             Text(
                 text = if (uiState.isOvertime) {
-                    "Overtime ${formatTime(uiState.overtimeMillis)} beyond ${uiState.targetHours.toInt()}h target"
+                    "Overtime ${formatTime(uiState.overtimeMillis)} beyond ${targetLabel}h target"
                 } else {
-                    "$progressPercent% of ${uiState.targetHours.toInt()}h target completed"
+                    "$progressPercent% of ${targetLabel}h target completed"
                 },
                 fontSize = 12.sp,
                 color = if (uiState.isOvertime) OvertimeRose else TextSecondary
@@ -522,14 +524,14 @@ private fun EditTargetDialog(
     onDismiss: () -> Unit,
     onConfirm: (Float) -> Unit
 ) {
-    var text by remember { mutableStateOf(currentTarget.toInt().toString()) }
+    var text by remember { mutableStateOf(currentTarget.toString().removeSuffix(".0")) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Set Daily Target", fontWeight = FontWeight.Bold) },
         text = {
             Column {
-                Text("Enter your daily work target in hours:", color = TextSecondary)
+                Text("Enter your daily work target in hours (e.g. 0.1 for 6m):", color = TextSecondary)
                 Spacer(modifier = Modifier.height(12.dp))
                 OutlinedTextField(
                     value = text,
@@ -544,7 +546,7 @@ private fun EditTargetDialog(
         confirmButton = {
             TextButton(onClick = {
                 val hours = text.toFloatOrNull() ?: currentTarget
-                onConfirm(hours.coerceIn(1f, 24f))
+                onConfirm(hours.coerceIn(0.01f, 24f))
             }) { Text("Save") }
         },
         dismissButton = {
@@ -558,12 +560,13 @@ private fun DailyTargetReachedDialog(
     targetHours: Float,
     onDismiss: () -> Unit
 ) {
+    val targetLabel = targetHours.toString().removeSuffix(".0")
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Daily target reached", fontWeight = FontWeight.Bold) },
         text = {
             Text(
-                text = "You completed your ${targetHours.toInt()}h work target. The timer has been stopped and saved.",
+                text = "You completed your ${targetLabel}h work target. The timer has been stopped and saved.",
                 color = TextSecondary
             )
         },

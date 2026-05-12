@@ -110,14 +110,14 @@ class TimeTrackerRepository(context: Context) {
         _liveSession.value = session
     }
 
-    private suspend fun getTotalWorkTodayMillis(session: LiveTimerSession): Long = withContext(Dispatchers.IO) {
+    suspend fun getTotalWorkTodayMillis(session: LiveTimerSession): Long {
         val savedWork = dao.getSessionByDateOnce(todayDate())?.totalWorkMillis ?: 0L
         val liveWork = if (session.state == TimerState.WORKING) {
-            session.totalWorkTime + (System.currentTimeMillis() - session.lastStateChangeTime)
+            session.totalWorkTime + (System.currentTimeMillis() - session.lastStateChangeTime).coerceAtLeast(0L)
         } else {
             session.totalWorkTime
         }
-        savedWork + liveWork
+        return savedWork + liveWork
     }
 
     private suspend fun hasReachedDailyTarget(session: LiveTimerSession): Boolean {
@@ -172,7 +172,7 @@ class TimeTrackerRepository(context: Context) {
                 scheduleDailyLimitAlarm()
             }
             TimerState.BREAK -> {
-                val breakDuration = now - current.lastStateChangeTime
+                val breakDuration = (now - current.lastStateChangeTime).coerceAtLeast(0L)
                 saveLiveSession(
                     current.copy(
                         state = TimerState.WORKING,
@@ -193,7 +193,7 @@ class TimeTrackerRepository(context: Context) {
         val now = System.currentTimeMillis()
         when (current.state) {
             TimerState.WORKING -> {
-                val workDuration = now - current.lastStateChangeTime
+                val workDuration = (now - current.lastStateChangeTime).coerceAtLeast(0L)
                 saveLiveSession(
                     current.copy(
                         state = TimerState.BREAK,
@@ -227,11 +227,11 @@ class TimeTrackerRepository(context: Context) {
         
         // Finalize current segment
         val finalWork = if (current.state == TimerState.WORKING) {
-            current.totalWorkTime + (now - current.lastStateChangeTime)
+            current.totalWorkTime + (now - current.lastStateChangeTime).coerceAtLeast(0L)
         } else current.totalWorkTime
         
         val finalBreak = if (current.state == TimerState.BREAK) {
-            current.totalBreakTime + (now - current.lastStateChangeTime)
+            current.totalBreakTime + (now - current.lastStateChangeTime).coerceAtLeast(0L)
         } else current.totalBreakTime
 
         // Save to Room

@@ -71,6 +71,7 @@ class TimeTrackerViewModel(application: Application) : AndroidViewModel(applicat
         if (live.lastActiveDate.isNotEmpty() && live.lastActiveDate != today) {
             // Save the session to the PREVIOUS date and reset
             repository.stopAndSaveSession(live.lastActiveDate)
+            refreshWidgets()
         }
     }
 
@@ -79,13 +80,15 @@ class TimeTrackerViewModel(application: Application) : AndroidViewModel(applicat
         repository.liveSession,
         _tick,
         _todayDbSession
-    ) { live, now, dbSession ->
+    ) { live, tickTime, dbSession ->
+        val realNow = System.currentTimeMillis()
+        
         val currentWorkDuration = if (live.state == TimerState.WORKING) {
-            now - live.lastStateChangeTime
+            (realNow - live.lastStateChangeTime).coerceAtLeast(0L)
         } else 0L
 
         val currentBreakDuration = if (live.state == TimerState.BREAK) {
-            now - live.lastStateChangeTime
+            (realNow - live.lastStateChangeTime).coerceAtLeast(0L)
         } else 0L
 
         val liveWork = live.totalWorkTime + currentWorkDuration
@@ -198,7 +201,9 @@ class TimeTrackerViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     private fun refreshWidgets() {
-        TimeTrackerWidgetProvider.updateAllWidgets(appContext, repository.liveSession.value)
+        viewModelScope.launch {
+            TimeTrackerWidgetProvider.updateAllWidgets(appContext, repository.liveSession.value)
+        }
     }
 }
 

@@ -32,7 +32,8 @@ class TimeTrackerWidgetProvider : AppWidgetProvider() {
 
                 val finalSession = repository.liveSession.value
                 for (appWidgetId in appWidgetIds) {
-                    updateAppWidget(context, appWidgetManager, appWidgetId, finalSession)
+                    val elapsedToday = repository.getTotalWorkTodayMillis(finalSession)
+                    updateAppWidget(context, appWidgetManager, appWidgetId, finalSession, elapsedToday)
                 }
             } finally {
                 pendingResult.finish()
@@ -98,7 +99,7 @@ class TimeTrackerWidgetProvider : AppWidgetProvider() {
         const val ACTION_DAILY_LIMIT_REACHED = "com.example.worktimer.ACTION_DAILY_LIMIT_REACHED"
         const val ACTION_MIDNIGHT_ROLLOVER = "com.example.worktimer.ACTION_MIDNIGHT_ROLLOVER"
 
-        fun updateAllWidgets(
+        suspend fun updateAllWidgets(
             context: Context,
             session: com.example.worktimer.data.LiveTimerSession
         ) {
@@ -107,9 +108,12 @@ class TimeTrackerWidgetProvider : AppWidgetProvider() {
             val appWidgetIds = appWidgetManager.getAppWidgetIds(
                 ComponentName(appContext, TimeTrackerWidgetProvider::class.java)
             )
+            
+            val repository = TimeTrackerRepository.getInstance(context)
+            val elapsedToday = repository.getTotalWorkTodayMillis(session)
 
             for (id in appWidgetIds) {
-                updateAppWidget(appContext, appWidgetManager, id, session)
+                updateAppWidget(appContext, appWidgetManager, id, session, elapsedToday)
             }
         }
 
@@ -118,17 +122,17 @@ class TimeTrackerWidgetProvider : AppWidgetProvider() {
             context: Context,
             appWidgetManager: AppWidgetManager,
             appWidgetId: Int,
-            session: com.example.worktimer.data.LiveTimerSession
+            session: com.example.worktimer.data.LiveTimerSession,
+            elapsedToday: Long
         ) {
             val views = RemoteViews(context.packageName, R.layout.widget_time_tracker)
 
             val isWorking = session.state == TimerState.WORKING
             
-            // Calculate time left
-            val now = System.currentTimeMillis()
-            val elapsedToday = session.totalWorkTime + if (isWorking) (now - session.lastStateChangeTime) else 0L
+            // Calculate time left or overtime
             val targetMs = (session.targetHours * 3600 * 1000).toLong()
-            val timeLeftMs = (targetMs - elapsedToday).coerceAtLeast(0L)
+            val isOvertime = elapsedToday > targetMs
+            val displayMs = if (isOvertime) elapsedToday - targetMs else targetMs - elapsedToday
             val hasReachedDailyLimit = hasReachedDailyLimitToday(context)
 
             // UI State
@@ -148,11 +152,12 @@ class TimeTrackerWidgetProvider : AppWidgetProvider() {
                 views.setTextColor(R.id.tv_widget_status, 0xFF6B7280.toInt())
             }
             
-            if (hasReachedDailyLimit) {
+            if (elapsedToday >= targetMs) {
                 views.setViewVisibility(R.id.tv_widget_time_left, View.GONE)
             } else {
                 views.setViewVisibility(R.id.tv_widget_time_left, View.VISIBLE)
-                views.setTextViewText(R.id.tv_widget_time_left, formatTimeLeft(timeLeftMs))
+                views.setTextViewText(R.id.tv_widget_time_left, formatTimeLeft(displayMs))
+                views.setTextColor(R.id.tv_widget_time_left, 0xFF1A1D26.toInt()) // Default color
             }
 
             // Toggle pending intent (Pill only)
@@ -183,6 +188,13 @@ class TimeTrackerWidgetProvider : AppWidgetProvider() {
             val hours = totalMinutes / 60
             val minutes = totalMinutes % 60
             return "${hours}h ${minutes}m left"
+        }
+
+        private fun formatOvertime(millis: Long): String {
+            val totalMinutes = millis / (1000 * 60)
+            val hours = totalMinutes / 60
+            val minutes = totalMinutes % 60
+            return "+${hours}h ${minutes}m"
         }
 
         private fun hasReachedDailyLimitToday(context: Context): Boolean {
