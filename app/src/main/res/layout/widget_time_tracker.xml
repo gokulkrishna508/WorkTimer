@@ -5,7 +5,6 @@
     android:background="@drawable/widget_bg"
     android:padding="20dp">
 
-    <!-- Toggle Pill Section -->
     <FrameLayout
         android:id="@+id/fl_toggle_container"
         android:layout_width="64dp"
@@ -14,7 +13,6 @@
         android:layout_marginTop="10dp"
         android:background="@drawable/pill_bg">
 
-        <!-- Active Indicators (Top and Bottom) -->
         <ImageView
             android:id="@+id/v_indicator_top"
             android:layout_width="48dp"
@@ -33,43 +31,24 @@
             android:src="@drawable/blue_circle_bg"
             android:visibility="gone" />
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="vertical"
-            android:gravity="center">
+        <ImageView
+            android:id="@+id/iv_play_icon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="top|center_horizontal"
+            android:layout_marginTop="20dp"
+            android:src="@drawable/ic_play" />
 
-            <ImageView
-                android:id="@+id/iv_play_icon"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_marginTop="12dp"
-                android:src="@drawable/ic_play" />
-
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1" />
-
-            <ImageView
-                android:id="@+id/iv_pause_icon"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_marginBottom="20dp"
-                android:src="@drawable/ic_pause" />
-
-        </LinearLayout>
-
-        <!-- The actual clickable area -->
-        <Button
-            android:id="@+id/btn_widget_toggle"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="@null" />
+        <ImageView
+            android:id="@+id/iv_pause_icon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="bottom|center_horizontal"
+            android:layout_marginBottom="20dp"
+            android:src="@drawable/ic_pause" />
 
     </FrameLayout>
 
-    <!-- Status Text -->
     <TextView
         android:id="@+id/tv_widget_status"
         android:layout_width="wrap_content"
@@ -82,7 +61,6 @@
         android:textSize="12sp"
         android:textStyle="bold" />
 
-    <!-- Time Left Text -->
     <TextView
         android:id="@+id/tv_widget_time_left"
         android:layout_width="wrap_content"

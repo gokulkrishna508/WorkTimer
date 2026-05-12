@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.view.View
@@ -40,15 +41,20 @@ class TimeTrackerWidgetProvider : AppWidgetProvider() {
                         repository.startWorking()
                     }
 
-                    val appWidgetManager = AppWidgetManager.getInstance(context)
-                    val appWidgetIds = appWidgetManager.getAppWidgetIds(
-                        android.content.ComponentName(context, TimeTrackerWidgetProvider::class.java)
-                    )
-                    
-                    val newSession = repository.liveSession.value
-                    for (id in appWidgetIds) {
-                        updateAppWidget(context, appWidgetManager, id, newSession)
-                    }
+                    updateAllWidgets(context, repository.liveSession.value)
+                } finally {
+                    pendingResult.finish()
+                }
+            }
+        } else if (intent.action == ACTION_DAILY_LIMIT_REACHED) {
+            val pendingResult = goAsync()
+            val repository = TimeTrackerRepository(context)
+
+            @OptIn(DelicateCoroutinesApi::class)
+            GlobalScope.launch {
+                try {
+                    repository.completeDailyTargetIfNeeded()
+                    updateAllWidgets(context, repository.liveSession.value)
                 } finally {
                     pendingResult.finish()
                 }
@@ -58,6 +64,22 @@ class TimeTrackerWidgetProvider : AppWidgetProvider() {
 
     companion object {
         const val ACTION_TOGGLE = "com.example.worktimer.ACTION_TOGGLE"
+        const val ACTION_DAILY_LIMIT_REACHED = "com.example.worktimer.ACTION_DAILY_LIMIT_REACHED"
+
+        fun updateAllWidgets(
+            context: Context,
+            session: com.example.worktimer.data.LiveTimerSession
+        ) {
+            val appContext = context.applicationContext
+            val appWidgetManager = AppWidgetManager.getInstance(appContext)
+            val appWidgetIds = appWidgetManager.getAppWidgetIds(
+                ComponentName(appContext, TimeTrackerWidgetProvider::class.java)
+            )
+
+            for (id in appWidgetIds) {
+                updateAppWidget(appContext, appWidgetManager, id, session)
+            }
+        }
 
         @SuppressLint("RemoteViewLayout")
         internal fun updateAppWidget(
@@ -103,7 +125,7 @@ class TimeTrackerWidgetProvider : AppWidgetProvider() {
                 context, 0, intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
-            views.setOnClickPendingIntent(R.id.btn_widget_toggle, pendingIntent)
+            views.setOnClickPendingIntent(R.id.fl_toggle_container, pendingIntent)
 
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }

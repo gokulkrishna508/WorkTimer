@@ -16,6 +16,7 @@ import androidx.compose.material.icons.outlined.Coffee
 import androidx.compose.material.icons.outlined.Work
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,7 +50,17 @@ private val StopRed = Color(0xFFEF5350)
 @Composable
 fun FocusScreen(viewModel: TimeTrackerViewModel = viewModel()) {
     val uiState by viewModel.uiState.collectAsState()
+    val targetReachedEventTime by viewModel.targetReachedEventTime.collectAsState()
     var showTargetDialog by remember { mutableStateOf(false) }
+    var shownTargetReachedEventTime by rememberSaveable { mutableLongStateOf(0L) }
+    var showTargetReachedDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(targetReachedEventTime) {
+        if (targetReachedEventTime > 0L && targetReachedEventTime != shownTargetReachedEventTime) {
+            shownTargetReachedEventTime = targetReachedEventTime
+            showTargetReachedDialog = true
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -106,6 +117,16 @@ fun FocusScreen(viewModel: TimeTrackerViewModel = viewModel()) {
             onConfirm = { hours ->
                 viewModel.onTargetHoursChanged(hours)
                 showTargetDialog = false
+            }
+        )
+    }
+
+    if (showTargetReachedDialog) {
+        DailyTargetReachedDialog(
+            targetHours = uiState.targetHours,
+            onDismiss = {
+                viewModel.onTargetReachedDialogDismissed(shownTargetReachedEventTime)
+                showTargetReachedDialog = false
             }
         )
     }
@@ -488,6 +509,26 @@ private fun EditTargetDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
+}
+
+@Composable
+private fun DailyTargetReachedDialog(
+    targetHours: Float,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Daily target reached", fontWeight = FontWeight.Bold) },
+        text = {
+            Text(
+                text = "You completed your ${targetHours.toInt()}h work target. The timer has been stopped and saved.",
+                color = TextSecondary
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Done") }
         }
     )
 }

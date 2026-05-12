@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.worktimer.data.TimeTrackerRepository
 import com.example.worktimer.data.TimerState
 import com.example.worktimer.data.WorkSessionEntity
+import com.example.worktimer.widget.TimeTrackerWidgetProvider
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -22,6 +23,7 @@ import java.util.Locale
 
 class TimeTrackerViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = TimeTrackerRepository(application)
+    private val appContext = application.applicationContext
 
     // Ticks every second to keep UI fresh
     private val _tick = MutableStateFlow(System.currentTimeMillis())
@@ -29,6 +31,8 @@ class TimeTrackerViewModel(application: Application) : AndroidViewModel(applicat
     // Today's saved session from Room
     private val _todayDbSession = repository.getTodaySession()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val targetReachedEventTime: StateFlow<Long> = repository.targetReachedEventTime
 
     init {
         viewModelScope.launch {
@@ -41,6 +45,10 @@ class TimeTrackerViewModel(application: Application) : AndroidViewModel(applicat
                 val currentDay = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(now))
                 if (currentDay != repository.liveSession.value.lastActiveDate && repository.liveSession.value.lastActiveDate.isNotEmpty()) {
                     checkDateRollover()
+                }
+
+                if (repository.completeDailyTargetIfNeeded()) {
+                    refreshWidgets()
                 }
                 
                 delay(1000)
@@ -136,25 +144,37 @@ class TimeTrackerViewModel(application: Application) : AndroidViewModel(applicat
     fun onWorkingClicked() {
         viewModelScope.launch {
             repository.startWorking()
+            refreshWidgets()
         }
     }
 
     fun onBreakClicked() {
         viewModelScope.launch {
             repository.startBreak()
+            refreshWidgets()
         }
     }
 
     fun onStopClicked() {
         viewModelScope.launch {
             repository.stopAndSaveSession()
+            refreshWidgets()
         }
     }
 
     fun onTargetHoursChanged(hours: Float) {
         viewModelScope.launch {
             repository.updateTargetHours(hours)
+            refreshWidgets()
         }
+    }
+
+    fun onTargetReachedDialogDismissed(eventTime: Long) {
+        repository.acknowledgeTargetReachedEvent(eventTime)
+    }
+
+    private fun refreshWidgets() {
+        TimeTrackerWidgetProvider.updateAllWidgets(appContext, repository.liveSession.value)
     }
 }
 
