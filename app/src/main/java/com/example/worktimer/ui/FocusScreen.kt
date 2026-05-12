@@ -5,6 +5,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -37,15 +38,28 @@ import com.example.worktimer.viewmodel.TimeTrackerViewModel
 // ──────────────────────────────────────────
 // Colours
 // ──────────────────────────────────────────
-private val PrimaryBlue = Color(0xFF2962FF)
-private val LightBlue = Color(0xFFE3F2FD)
-private val TrackGray = Color(0xFFE8EAF0)
-private val SurfaceWhite = Color(0xFFFFFFFF)
-private val BackgroundGray = Color(0xFFF4F6FA)
-private val TextPrimary = Color(0xFF1A1D26)
-private val TextSecondary = Color(0xFF6B7280)
-private val BreakAmber = Color(0xFFFFA726)
-private val StopRed = Color(0xFFEF5350)
+private val PrimaryBlue: Color
+    @Composable get() = if (isSystemInDarkTheme()) Color(0xFF6EA3FF) else Color(0xFF2962FF)
+private val LightBlue: Color
+    @Composable get() = if (isSystemInDarkTheme()) Color(0xFF17345F) else Color(0xFFE3F2FD)
+private val TrackGray: Color
+    @Composable get() = if (isSystemInDarkTheme()) Color(0xFF2C3442) else Color(0xFFE8EAF0)
+private val SurfaceWhite: Color
+    @Composable get() = if (isSystemInDarkTheme()) Color(0xFF171A22) else Color(0xFFFFFFFF)
+private val BackgroundGray: Color
+    @Composable get() = if (isSystemInDarkTheme()) Color(0xFF0F1117) else Color(0xFFF4F6FA)
+private val TextPrimary: Color
+    @Composable get() = if (isSystemInDarkTheme()) Color(0xFFF4F7FB) else Color(0xFF1A1D26)
+private val TextSecondary: Color
+    @Composable get() = if (isSystemInDarkTheme()) Color(0xFFA5ADBA) else Color(0xFF6B7280)
+private val BreakAmber: Color
+    @Composable get() = if (isSystemInDarkTheme()) Color(0xFFFFB85C) else Color(0xFFFFA726)
+private val StopRed: Color
+    @Composable get() = if (isSystemInDarkTheme()) Color(0xFFFF6B6B) else Color(0xFFEF5350)
+private val TimerInnerSurface: Color
+    @Composable get() = if (isSystemInDarkTheme()) Color(0xFF1D2430) else Color(0xFFF0F4FF)
+private val ControlTrack: Color
+    @Composable get() = if (isSystemInDarkTheme()) Color(0xFF242B36) else Color(0xFFF0F2F5)
 
 @Composable
 fun FocusScreen(viewModel: TimeTrackerViewModel = viewModel()) {
@@ -150,7 +164,7 @@ private fun CircularTimerSection(uiState: TimeTrackerUiState) {
             .clip(CircleShape)
             .background(
                 Brush.radialGradient(
-                    colors = listOf(SurfaceWhite, Color(0xFFF0F4FF))
+                    colors = listOf(SurfaceWhite, TimerInnerSurface)
                 )
             )
     ) {
@@ -305,7 +319,7 @@ private fun ToggleButtonRow(
     onBreakClick: () -> Unit
 ) {
     val workBg by animateColorAsState(
-        if (isWorking) PrimaryBlue else Color(0xFFF0F2F5),
+        if (isWorking) PrimaryBlue else ControlTrack,
         animationSpec = tween(250), label = "workBg"
     )
     val workFg by animateColorAsState(
@@ -313,7 +327,7 @@ private fun ToggleButtonRow(
         animationSpec = tween(250), label = "workFg"
     )
     val breakBg by animateColorAsState(
-        if (isBreak) BreakAmber else Color(0xFFF0F2F5),
+        if (isBreak) BreakAmber else ControlTrack,
         animationSpec = tween(250), label = "breakBg"
     )
     val breakFg by animateColorAsState(
@@ -326,7 +340,7 @@ private fun ToggleButtonRow(
             .fillMaxWidth()
             .height(50.dp)
             .clip(RoundedCornerShape(25.dp))
-            .background(Color(0xFFF0F2F5))
+            .background(ControlTrack)
     ) {
         // Working toggle
         Box(

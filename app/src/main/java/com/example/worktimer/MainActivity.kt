@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -47,6 +48,11 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun MainScreen(viewModel: TimeTrackerViewModel) {
+    val darkTheme = isSystemInDarkTheme()
+    val navContainer = if (darkTheme) Color(0xFF171A22) else Color.White
+    val selectedBlue = if (darkTheme) Color(0xFF6EA3FF) else Color(0xFF2962FF)
+    val unselected = if (darkTheme) Color(0xFFA5ADBA) else Color(0xFF9CA3AF)
+    val indicator = if (darkTheme) Color(0xFF17345F) else Color(0xFFE3F2FD)
     val tabs = listOf(
         BottomNavItem("Track", Icons.Filled.Timer, Icons.Outlined.Timer),
         BottomNavItem("Weekly", Icons.Filled.BarChart, Icons.Outlined.BarChart)
@@ -57,7 +63,7 @@ private fun MainScreen(viewModel: TimeTrackerViewModel) {
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
             NavigationBar(
-                containerColor = Color.White,
+                containerColor = navContainer,
                 tonalElevation = 8.dp
             ) {
                 tabs.forEachIndexed { index, item ->
@@ -78,11 +84,11 @@ private fun MainScreen(viewModel: TimeTrackerViewModel) {
                             )
                         },
                         colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = Color(0xFF2962FF),
-                            selectedTextColor = Color(0xFF2962FF),
-                            unselectedIconColor = Color(0xFF9CA3AF),
-                            unselectedTextColor = Color(0xFF9CA3AF),
-                            indicatorColor = Color(0xFFE3F2FD)
+                            selectedIconColor = selectedBlue,
+                            selectedTextColor = selectedBlue,
+                            unselectedIconColor = unselected,
+                            unselectedTextColor = unselected,
+                            indicatorColor = indicator
                         )
                     )
                 }

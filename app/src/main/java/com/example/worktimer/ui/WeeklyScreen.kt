@@ -3,13 +3,14 @@ package com.example.worktimer.ui
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.TrendingUp
+import androidx.compose.material.icons.automirrored.outlined.TrendingUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,15 +30,28 @@ import java.util.Locale
 // ──────────────────────────────────────────
 // Colours (shared palette)
 // ──────────────────────────────────────────
-private val PrimaryBlue = Color(0xFF2962FF)
-private val LightBlue = Color(0xFFE3F2FD)
-private val SurfaceWhite = Color(0xFFFFFFFF)
-private val BackgroundGray = Color(0xFFF4F6FA)
-private val TextPrimary = Color(0xFF1A1D26)
-private val TextSecondary = Color(0xFF6B7280)
-private val BarGradientStart = Color(0xFFBBDEFB)
-private val BarGradientEnd = Color(0xFF2962FF)
-private val BreakBar = Color(0xFFFFA726)
+private val PrimaryBlue: Color
+    @Composable get() = if (isSystemInDarkTheme()) Color(0xFF6EA3FF) else Color(0xFF2962FF)
+private val LightBlue: Color
+    @Composable get() = if (isSystemInDarkTheme()) Color(0xFF17345F) else Color(0xFFE3F2FD)
+private val SurfaceWhite: Color
+    @Composable get() = if (isSystemInDarkTheme()) Color(0xFF171A22) else Color(0xFFFFFFFF)
+private val BackgroundGray: Color
+    @Composable get() = if (isSystemInDarkTheme()) Color(0xFF0F1117) else Color(0xFFF4F6FA)
+private val TextPrimary: Color
+    @Composable get() = if (isSystemInDarkTheme()) Color(0xFFF4F7FB) else Color(0xFF1A1D26)
+private val TextSecondary: Color
+    @Composable get() = if (isSystemInDarkTheme()) Color(0xFFA5ADBA) else Color(0xFF6B7280)
+private val BarGradientStart: Color
+    @Composable get() = if (isSystemInDarkTheme()) Color(0xFF244B7C) else Color(0xFFBBDEFB)
+private val BarGradientEnd: Color
+    @Composable get() = if (isSystemInDarkTheme()) Color(0xFF6EA3FF) else Color(0xFF2962FF)
+private val BreakBar: Color
+    @Composable get() = if (isSystemInDarkTheme()) Color(0xFFFFB85C) else Color(0xFFFFA726)
+private val DividerColor: Color
+    @Composable get() = if (isSystemInDarkTheme()) Color(0xFF2A303B) else Color(0xFFF0F2F5)
+private val EmptyDotColor: Color
+    @Composable get() = if (isSystemInDarkTheme()) Color(0xFF4A5361) else Color(0xFFD0D5DD)
 
 @Composable
 fun WeeklyScreen(viewModel: TimeTrackerViewModel) {
@@ -90,7 +104,7 @@ fun WeeklyScreen(viewModel: TimeTrackerViewModel) {
                         letterSpacing = 1.sp
                     )
                     Icon(
-                        imageVector = Icons.Outlined.TrendingUp,
+                        imageVector = Icons.AutoMirrored.Outlined.TrendingUp,
                         contentDescription = null,
                         tint = PrimaryBlue,
                         modifier = Modifier.size(22.dp)
@@ -192,7 +206,7 @@ fun WeeklyScreen(viewModel: TimeTrackerViewModel) {
                     if (day != state.days.last()) {
                         HorizontalDivider(
                             modifier = Modifier.padding(vertical = 10.dp),
-                            color = Color(0xFFF0F2F5)
+                            color = DividerColor
                         )
                     }
                 }
@@ -304,7 +318,7 @@ private fun DayRow(day: DayData) {
             modifier = Modifier
                 .size(10.dp)
                 .clip(CircleShape)
-                .background(if (day.workHours > 0f) PrimaryBlue else Color(0xFFD0D5DD))
+                .background(if (day.workHours > 0f) PrimaryBlue else EmptyDotColor)
         )
         Spacer(modifier = Modifier.width(12.dp))
 
