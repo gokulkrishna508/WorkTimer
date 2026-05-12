@@ -6,10 +6,12 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.content.Intent
 import com.example.worktimer.widget.TimeTrackerWidgetProvider
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -38,7 +40,8 @@ private val LIVE_SESSION_PREF_KEYS = setOf(
     "targetHours",
     "lastActiveDate",
     "targetReachedEventTime",
-    "targetReachedAcknowledgedTime"
+    "targetReachedAcknowledgedTime",
+    "targetReachedDate"
 )
 
 class TimeTrackerRepository(context: Context) {
@@ -90,6 +93,10 @@ class TimeTrackerRepository(context: Context) {
         return if (eventTime > acknowledgedTime) eventTime else 0L
     }
 
+    private fun hasReachedTargetToday(): Boolean {
+        return prefs.getString("targetReachedDate", "") == todayDate()
+    }
+
     private fun saveLiveSession(session: LiveTimerSession) {
         prefs.edit()
             .putString("state", session.state.name)
@@ -103,14 +110,14 @@ class TimeTrackerRepository(context: Context) {
         _liveSession.value = session
     }
 
-    private suspend fun getTotalWorkTodayMillis(session: LiveTimerSession): Long {
+    private suspend fun getTotalWorkTodayMillis(session: LiveTimerSession): Long = withContext(Dispatchers.IO) {
         val savedWork = dao.getSessionByDateOnce(todayDate())?.totalWorkMillis ?: 0L
         val liveWork = if (session.state == TimerState.WORKING) {
             session.totalWorkTime + (System.currentTimeMillis() - session.lastStateChangeTime)
         } else {
             session.totalWorkTime
         }
-        return savedWork + liveWork
+        savedWork + liveWork
     }
 
     private suspend fun hasReachedDailyTarget(session: LiveTimerSession): Boolean {
@@ -120,7 +127,10 @@ class TimeTrackerRepository(context: Context) {
 
     private fun notifyTargetReached() {
         val eventTime = System.currentTimeMillis()
-        prefs.edit().putLong("targetReachedEventTime", eventTime).apply()
+        prefs.edit()
+            .putLong("targetReachedEventTime", eventTime)
+            .putString("targetReachedDate", todayDate())
+            .apply()
         _targetReachedEventTime.value = eventTime
     }
 
@@ -141,7 +151,7 @@ class TimeTrackerRepository(context: Context) {
     suspend fun startWorking() {
         checkAndRolloverIfNeeded()
         val current = _liveSession.value
-        if (hasReachedDailyTarget(current)) {
+        if (hasReachedDailyTarget(current) && !hasReachedTargetToday()) {
             notifyTargetReached()
             cancelDailyLimitAlarm()
             return
@@ -252,9 +262,23 @@ class TimeTrackerRepository(context: Context) {
         }
     }
 
+    suspend fun resetAllData() {
+        // Clear SharedPreferences
+        prefs.edit().clear().apply()
+        // Clear Room
+        dao.deleteAll()
+        // Reset Flow with default session
+        val defaultSession = LiveTimerSession(targetHours = 8f, lastActiveDate = todayDate())
+        _liveSession.value = defaultSession
+        cancelDailyLimitAlarm()
+    }
+
     suspend fun completeDailyTargetIfNeeded(): Boolean {
         val current = _liveSession.value
-        if (current.state != TimerState.WORKING || !hasReachedDailyTarget(current)) {
+        if (current.state != TimerState.WORKING ||
+            hasReachedTargetToday() ||
+            !hasReachedDailyTarget(current)
+        ) {
             return false
         }
 
@@ -303,6 +327,7 @@ class TimeTrackerRepository(context: Context) {
         val workedToday = getTotalWorkTodayMillis(current)
         val remainingMs = targetMs - workedToday
         if (remainingMs <= 0L) {
+            if (hasReachedTargetToday()) return
             completeDailyTargetIfNeeded()
             return
         }
@@ -313,6 +338,34 @@ class TimeTrackerRepository(context: Context) {
             AlarmManager.RTC_WAKEUP,
             triggerAtMillis,
             dailyLimitPendingIntent()
+        )
+    }
+
+    fun scheduleMidnightRollover() {
+        val alarmManager = appContext.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val calendar = Calendar.getInstance().apply {
+            timeInMillis = System.currentTimeMillis()
+            add(Calendar.DAY_OF_YEAR, 1)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+
+        val intent = Intent(appContext, TimeTrackerWidgetProvider::class.java).apply {
+            action = TimeTrackerWidgetProvider.ACTION_MIDNIGHT_ROLLOVER
+        }
+        val pendingIntent = PendingIntent.getBroadcast(
+            appContext,
+            2,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        alarmManager.setAndAllowWhileIdle(
+            AlarmManager.RTC_WAKEUP,
+            calendar.timeInMillis,
+            pendingIntent
         )
     }
 
@@ -331,5 +384,18 @@ class TimeTrackerRepository(context: Context) {
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+    }
+
+    companion object {
+        @Volatile
+        private var INSTANCE: TimeTrackerRepository? = null
+
+        fun getInstance(context: Context): TimeTrackerRepository {
+            return INSTANCE ?: synchronized(this) {
+                INSTANCE ?: TimeTrackerRepository(context.applicationContext).also {
+                    INSTANCE = it
+                }
+            }
+        }
     }
 }

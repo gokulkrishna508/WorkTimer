@@ -19,4 +19,7 @@ interface WorkSessionDao {
 
     @Query("SELECT * FROM work_sessions WHERE date IN (:dates) ORDER BY date ASC")
     fun getSessionsByDates(dates: List<String>): Flow<List<WorkSessionEntity>>
+
+    @Query("DELETE FROM work_sessions")
+    suspend fun deleteAll()
 }

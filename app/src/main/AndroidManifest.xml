@@ -29,6 +29,8 @@
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
                 <action android:name="com.example.worktimer.ACTION_TOGGLE" />
+                <action android:name="com.example.worktimer.ACTION_MIDNIGHT_ROLLOVER" />
+                <action android:name="com.example.worktimer.ACTION_DAILY_LIMIT_REACHED" />
             </intent-filter>
 
             <meta-data

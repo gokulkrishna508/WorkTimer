@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.TrendingUp
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -57,6 +58,35 @@ private val EmptyDotColor: Color
 fun WeeklyScreen(viewModel: TimeTrackerViewModel) {
     val state by viewModel.weeklyState.collectAsState()
 
+    var showResetDialog by remember { mutableStateOf(false) }
+    
+    if (showResetDialog) {
+        AlertDialog(
+            onDismissRequest = { showResetDialog = false },
+            title = { Text("Reset All Data") },
+            text = { Text("Are you sure you want to delete all work sessions and reset the timer? This action cannot be undone.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.onResetAllData()
+                        showResetDialog = false
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = Color.Red)
+                ) {
+                    Text("Reset", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetDialog = false }) {
+                    Text("Cancel")
+                }
+            },
+            containerColor = SurfaceWhite,
+            titleContentColor = TextPrimary,
+            textContentColor = TextSecondary
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -66,13 +96,33 @@ fun WeeklyScreen(viewModel: TimeTrackerViewModel) {
             .padding(top = 24.dp, bottom = 32.dp)
     ) {
         // ── Header ──
-        Text(
-            text = "Weekly\nInsights",
-            fontSize = 32.sp,
-            fontWeight = FontWeight.Black,
-            color = TextPrimary,
-            lineHeight = 38.sp
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top
+        ) {
+            Text(
+                text = "Weekly\nInsights",
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Black,
+                color = TextPrimary,
+                lineHeight = 38.sp
+            )
+            
+            IconButton(
+                onClick = { showResetDialog = true },
+                modifier = Modifier
+                    .padding(top = 4.dp)
+                    .background(LightBlue, CircleShape)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.DeleteSweep,
+                    contentDescription = "Reset Data",
+                    tint = PrimaryBlue
+                )
+            }
+        }
+        
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = weekSummaryText(state),
@@ -147,7 +197,7 @@ fun WeeklyScreen(viewModel: TimeTrackerViewModel) {
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // ── Break Summary Card ──
+        // ── Total Weekly Hours Card (Work + Break) ──
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
@@ -156,25 +206,26 @@ fun WeeklyScreen(viewModel: TimeTrackerViewModel) {
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Text(
-                    text = "BREAK TIME",
+                    text = "TOTAL WEEKLY HOURS",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = TextSecondary,
                     letterSpacing = 1.sp
                 )
                 Spacer(modifier = Modifier.height(12.dp))
-                val breakH = state.totalBreakHours.toInt()
-                val breakM = ((state.totalBreakHours - breakH) * 60).toInt()
+                val totalActiveHours = state.totalWorkHours + state.totalBreakHours
+                val totalH = totalActiveHours.toInt()
+                val totalM = ((totalActiveHours - totalH) * 60).toInt()
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text(
-                        text = "${breakH}h ${breakM}m",
+                        text = "${totalH}h ${totalM}m",
                         fontSize = 28.sp,
                         fontWeight = FontWeight.Bold,
-                        color = BreakBar
+                        color = PrimaryBlue
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "total breaks",
+                        text = "combined time",
                         fontSize = 14.sp,
                         color = TextSecondary,
                         modifier = Modifier.padding(bottom = 4.dp)

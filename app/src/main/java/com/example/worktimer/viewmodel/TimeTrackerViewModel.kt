@@ -22,7 +22,7 @@ import java.util.Date
 import java.util.Locale
 
 class TimeTrackerViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository = TimeTrackerRepository(application)
+    private val repository = TimeTrackerRepository.getInstance(application)
     private val appContext = application.applicationContext
 
     // Ticks every second to keep UI fresh
@@ -36,7 +36,9 @@ class TimeTrackerViewModel(application: Application) : AndroidViewModel(applicat
 
     init {
         viewModelScope.launch {
+            repository.scheduleMidnightRollover()
             checkDateRollover()
+            var lastLimitCheckAt = 0L
             while (isActive) {
                 val now = System.currentTimeMillis()
                 _tick.value = now
@@ -47,11 +49,17 @@ class TimeTrackerViewModel(application: Application) : AndroidViewModel(applicat
                     checkDateRollover()
                 }
 
-                if (repository.completeDailyTargetIfNeeded()) {
+                val shouldCheckLimit =
+                    repository.liveSession.value.state == TimerState.WORKING &&
+                            now - lastLimitCheckAt >= TARGET_LIMIT_CHECK_INTERVAL_MS
+                if (shouldCheckLimit && repository.completeDailyTargetIfNeeded()) {
                     refreshWidgets()
                 }
+                if (shouldCheckLimit) {
+                    lastLimitCheckAt = now
+                }
                 
-                delay(1000)
+                delay(if (repository.liveSession.value.state == TimerState.STOPPED) 60_000L else 1_000L)
             }
         }
     }
@@ -96,6 +104,12 @@ class TimeTrackerViewModel(application: Application) : AndroidViewModel(applicat
         // Progress is total work hours vs target (8h default)
         val targetMs = (live.targetHours * 3600 * 1000).toLong()
         val progress = if (targetMs > 0) totalWorkToday.toFloat() / targetMs else 0f
+        val overtimeMillis = if (targetMs > 0L) {
+            (totalWorkToday - targetMs).coerceAtLeast(0L)
+        } else {
+            0L
+        }
+        val hasReachedTarget = targetMs > 0L && totalWorkToday >= targetMs
 
         TimeTrackerUiState(
             state = live.state,
@@ -106,6 +120,9 @@ class TimeTrackerViewModel(application: Application) : AndroidViewModel(applicat
             totalBreakTodayMillis = totalBreakToday,
             targetHours = live.targetHours,
             progress = progress.coerceIn(0f, 1f),
+            overtimeMillis = overtimeMillis,
+            isOvertime = overtimeMillis > 0L,
+            hasReachedTarget = hasReachedTarget,
             todaySessionCount = (dbSession?.sessionCount ?: 0) + if (live.state != TimerState.STOPPED) 1 else 0
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TimeTrackerUiState())
@@ -173,6 +190,13 @@ class TimeTrackerViewModel(application: Application) : AndroidViewModel(applicat
         repository.acknowledgeTargetReachedEvent(eventTime)
     }
 
+    fun onResetAllData() {
+        viewModelScope.launch {
+            repository.resetAllData()
+            refreshWidgets()
+        }
+    }
+
     private fun refreshWidgets() {
         TimeTrackerWidgetProvider.updateAllWidgets(appContext, repository.liveSession.value)
     }
@@ -189,6 +213,9 @@ data class TimeTrackerUiState(
     val totalBreakTodayMillis: Long = 0L,
     val targetHours: Float = 8f,
     val progress: Float = 0f,
+    val overtimeMillis: Long = 0L,
+    val isOvertime: Boolean = false,
+    val hasReachedTarget: Boolean = false,
     val todaySessionCount: Int = 0
 )
 
@@ -206,3 +233,5 @@ data class WeeklyUiState(
     val formattedTotalH: Int = 0,
     val formattedTotalM: Int = 0
 )
+
+private const val TARGET_LIMIT_CHECK_INTERVAL_MS = 5_000L

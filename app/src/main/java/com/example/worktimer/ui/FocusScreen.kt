@@ -56,6 +56,8 @@ private val BreakAmber: Color
     @Composable get() = if (isSystemInDarkTheme()) Color(0xFFFFB85C) else Color(0xFFFFA726)
 private val StopRed: Color
     @Composable get() = if (isSystemInDarkTheme()) Color(0xFFFF6B6B) else Color(0xFFEF5350)
+private val OvertimeRose: Color
+    @Composable get() = if (isSystemInDarkTheme()) Color(0xFFFF6B6B) else Color(0xFFEF5350)
 private val TimerInnerSurface: Color
     @Composable get() = if (isSystemInDarkTheme()) Color(0xFF1D2430) else Color(0xFFF0F4FF)
 private val ControlTrack: Color
@@ -106,7 +108,7 @@ fun FocusScreen(viewModel: TimeTrackerViewModel = viewModel()) {
         Spacer(modifier = Modifier.height(20.dp))
 
         // ── Stop Session Button ──
-        if (uiState.state != TimerState.STOPPED) {
+        if (uiState.state != TimerState.STOPPED && uiState.hasReachedTarget) {
             Button(
                 onClick = { viewModel.onStopClicked() },
                 modifier = Modifier
@@ -151,6 +153,12 @@ fun FocusScreen(viewModel: TimeTrackerViewModel = viewModel()) {
 // ══════════════════════════════════════════
 @Composable
 private fun CircularTimerSection(uiState: TimeTrackerUiState) {
+    val activeColor = when {
+        uiState.isOvertime -> OvertimeRose
+        uiState.state == TimerState.BREAK -> BreakAmber
+        else -> PrimaryBlue
+    }
+
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
@@ -158,8 +166,8 @@ private fun CircularTimerSection(uiState: TimeTrackerUiState) {
             .shadow(
                 elevation = 12.dp,
                 shape = CircleShape,
-                ambientColor = PrimaryBlue.copy(alpha = 0.08f),
-                spotColor = PrimaryBlue.copy(alpha = 0.12f)
+                ambientColor = activeColor.copy(alpha = 0.08f),
+                spotColor = activeColor.copy(alpha = 0.12f)
             )
             .clip(CircleShape)
             .background(
@@ -180,7 +188,7 @@ private fun CircularTimerSection(uiState: TimeTrackerUiState) {
         CircularProgressIndicator(
             progress = { uiState.progress },
             modifier = Modifier.size(230.dp),
-            color = if (uiState.state == TimerState.BREAK) BreakAmber else PrimaryBlue,
+            color = activeColor,
             strokeWidth = 10.dp,
             trackColor = Color.Transparent,
             strokeCap = StrokeCap.Round
@@ -199,7 +207,7 @@ private fun CircularTimerSection(uiState: TimeTrackerUiState) {
                 text = formatTime(uiState.currentSessionMillis),
                 fontSize = 44.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextPrimary,
+                color = if (uiState.isOvertime) OvertimeRose else TextPrimary,
                 letterSpacing = (-1).sp
             )
             Spacer(modifier = Modifier.height(6.dp))
@@ -209,24 +217,27 @@ private fun CircularTimerSection(uiState: TimeTrackerUiState) {
                         .size(8.dp)
                         .clip(CircleShape)
                         .background(
-                            when (uiState.state) {
-                                TimerState.WORKING -> PrimaryBlue
-                                TimerState.BREAK -> BreakAmber
-                                TimerState.STOPPED -> TextSecondary
+                            when {
+                                uiState.isOvertime -> OvertimeRose
+                                uiState.state == TimerState.WORKING -> PrimaryBlue
+                                uiState.state == TimerState.BREAK -> BreakAmber
+                                else -> TextSecondary
                             }
                         )
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = when (uiState.state) {
-                        TimerState.WORKING -> "Deep Work"
-                        TimerState.BREAK -> "On Break"
-                        TimerState.STOPPED -> "Idle"
+                    text = when {
+                        uiState.isOvertime -> "Overtime"
+                        uiState.state == TimerState.WORKING -> "Deep Work"
+                        uiState.state == TimerState.BREAK -> "On Break"
+                        else -> "Idle"
                     },
-                    color = when (uiState.state) {
-                        TimerState.WORKING -> PrimaryBlue
-                        TimerState.BREAK -> BreakAmber
-                        TimerState.STOPPED -> TextSecondary
+                    color = when {
+                        uiState.isOvertime -> OvertimeRose
+                        uiState.state == TimerState.WORKING -> PrimaryBlue
+                        uiState.state == TimerState.BREAK -> BreakAmber
+                        else -> TextSecondary
                     },
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold
@@ -284,6 +295,7 @@ private fun SessionControlCard(
             ToggleButtonRow(
                 isWorking = uiState.state == TimerState.WORKING,
                 isBreak = uiState.state == TimerState.BREAK,
+                isOvertime = uiState.isOvertime,
                 onWorkClick = onWorkClick,
                 onBreakClick = onBreakClick
             )
@@ -293,8 +305,11 @@ private fun SessionControlCard(
             // ── Elapsed / Break info ──
             Row(modifier = Modifier.fillMaxWidth()) {
                 InfoChip(
-                    label = "ELAPSED",
-                    value = formatTime(uiState.elapsedWorkMillis),
+                    label = if (uiState.isOvertime) "OVERTIME" else "ELAPSED",
+                    value = formatTime(
+                        if (uiState.isOvertime) uiState.overtimeMillis else uiState.elapsedWorkMillis
+                    ),
+                    accentColor = if (uiState.isOvertime) OvertimeRose else TextPrimary,
                     modifier = Modifier.weight(1f)
                 )
                 Spacer(modifier = Modifier.width(12.dp))
@@ -315,11 +330,12 @@ private fun SessionControlCard(
 private fun ToggleButtonRow(
     isWorking: Boolean,
     isBreak: Boolean,
+    isOvertime: Boolean,
     onWorkClick: () -> Unit,
     onBreakClick: () -> Unit
 ) {
     val workBg by animateColorAsState(
-        if (isWorking) PrimaryBlue else ControlTrack,
+        if (isWorking && isOvertime) OvertimeRose else if (isWorking) PrimaryBlue else ControlTrack,
         animationSpec = tween(250), label = "workBg"
     )
     val workFg by animateColorAsState(
@@ -361,7 +377,7 @@ private fun ToggleButtonRow(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "Working",
+                    text = if (isOvertime) "Overtime" else "Working",
                     color = workFg,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 14.sp
@@ -402,7 +418,12 @@ private fun ToggleButtonRow(
 // Info Chip
 // ══════════════════════════════════════════
 @Composable
-private fun InfoChip(label: String, value: String, modifier: Modifier = Modifier) {
+private fun InfoChip(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    accentColor: Color = TextPrimary
+) {
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(14.dp))
@@ -412,7 +433,7 @@ private fun InfoChip(label: String, value: String, modifier: Modifier = Modifier
         Text(
             text = label,
             fontSize = 10.sp,
-            color = TextSecondary,
+            color = if (label == "OVERTIME") accentColor else TextSecondary,
             fontWeight = FontWeight.Bold,
             letterSpacing = 1.sp
         )
@@ -421,7 +442,7 @@ private fun InfoChip(label: String, value: String, modifier: Modifier = Modifier
             text = value,
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
-            color = TextPrimary
+            color = accentColor
         )
     }
 }
@@ -433,6 +454,7 @@ private fun InfoChip(label: String, value: String, modifier: Modifier = Modifier
 private fun TodayFocusCard(uiState: TimeTrackerUiState) {
     val totalHours = uiState.totalWorkTodayMillis / (1000f * 3600f)
     val progressPercent = (uiState.progress * 100).toInt()
+    val graphColor = if (uiState.isOvertime) OvertimeRose else PrimaryBlue
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -454,7 +476,7 @@ private fun TodayFocusCard(uiState: TimeTrackerUiState) {
                     text = String.format("%.1f", totalHours),
                     fontSize = 40.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextPrimary
+                    color = if (uiState.isOvertime) OvertimeRose else TextPrimary
                 )
                 Text(
                     text = " hours",
@@ -473,15 +495,19 @@ private fun TodayFocusCard(uiState: TimeTrackerUiState) {
                     .fillMaxWidth()
                     .height(8.dp)
                     .clip(RoundedCornerShape(4.dp)),
-                color = PrimaryBlue,
+                color = graphColor,
                 trackColor = LightBlue,
                 strokeCap = StrokeCap.Round
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = "$progressPercent% of ${uiState.targetHours.toInt()}h target completed",
+                text = if (uiState.isOvertime) {
+                    "Overtime ${formatTime(uiState.overtimeMillis)} beyond ${uiState.targetHours.toInt()}h target"
+                } else {
+                    "$progressPercent% of ${uiState.targetHours.toInt()}h target completed"
+                },
                 fontSize = 12.sp,
-                color = TextSecondary
+                color = if (uiState.isOvertime) OvertimeRose else TextSecondary
             )
         }
     }

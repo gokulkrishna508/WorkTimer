@@ -13,15 +13,30 @@ import com.example.worktimer.R
 import com.example.worktimer.data.TimeTrackerRepository
 import com.example.worktimer.data.TimerState
 import kotlinx.coroutines.*
+import java.text.SimpleDateFormat
 
 class TimeTrackerWidgetProvider : AppWidgetProvider() {
 
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
-        val repository = TimeTrackerRepository(context)
-        val session = repository.liveSession.value
+        val pendingResult = goAsync()
+        val repository = TimeTrackerRepository.getInstance(context)
 
-        for (appWidgetId in appWidgetIds) {
-            updateAppWidget(context, appWidgetManager, appWidgetId, session)
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val session = repository.liveSession.value
+                val today = SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
+                
+                if (session.lastActiveDate.isNotEmpty() && session.lastActiveDate != today) {
+                    repository.stopAndSaveSession(session.lastActiveDate)
+                }
+
+                val finalSession = repository.liveSession.value
+                for (appWidgetId in appWidgetIds) {
+                    updateAppWidget(context, appWidgetManager, appWidgetId, finalSession)
+                }
+            } finally {
+                pendingResult.finish()
+            }
         }
     }
 
@@ -29,10 +44,9 @@ class TimeTrackerWidgetProvider : AppWidgetProvider() {
         super.onReceive(context, intent)
         if (intent.action == ACTION_TOGGLE) {
             val pendingResult = goAsync()
-            val repository = TimeTrackerRepository(context)
+            val repository = TimeTrackerRepository.getInstance(context)
             
-            @OptIn(DelicateCoroutinesApi::class)
-            GlobalScope.launch {
+            CoroutineScope(Dispatchers.IO).launch {
                 try {
                     val current = repository.liveSession.value
                     if (current.state == TimerState.WORKING) {
@@ -48,12 +62,29 @@ class TimeTrackerWidgetProvider : AppWidgetProvider() {
             }
         } else if (intent.action == ACTION_DAILY_LIMIT_REACHED) {
             val pendingResult = goAsync()
-            val repository = TimeTrackerRepository(context)
+            val repository = TimeTrackerRepository.getInstance(context)
 
-            @OptIn(DelicateCoroutinesApi::class)
-            GlobalScope.launch {
+            CoroutineScope(Dispatchers.IO).launch {
                 try {
                     repository.completeDailyTargetIfNeeded()
+                    updateAllWidgets(context, repository.liveSession.value)
+                } finally {
+                    pendingResult.finish()
+                }
+            }
+        } else if (intent.action == ACTION_MIDNIGHT_ROLLOVER) {
+            val pendingResult = goAsync()
+            val repository = TimeTrackerRepository.getInstance(context)
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    val session = repository.liveSession.value
+                    val today = SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
+                    if (session.lastActiveDate.isNotEmpty() && session.lastActiveDate != today) {
+                        repository.stopAndSaveSession(session.lastActiveDate)
+                    }
+
+                    repository.scheduleMidnightRollover()
+                    
                     updateAllWidgets(context, repository.liveSession.value)
                 } finally {
                     pendingResult.finish()
@@ -65,6 +96,7 @@ class TimeTrackerWidgetProvider : AppWidgetProvider() {
     companion object {
         const val ACTION_TOGGLE = "com.example.worktimer.ACTION_TOGGLE"
         const val ACTION_DAILY_LIMIT_REACHED = "com.example.worktimer.ACTION_DAILY_LIMIT_REACHED"
+        const val ACTION_MIDNIGHT_ROLLOVER = "com.example.worktimer.ACTION_MIDNIGHT_ROLLOVER"
 
         fun updateAllWidgets(
             context: Context,
@@ -97,6 +129,7 @@ class TimeTrackerWidgetProvider : AppWidgetProvider() {
             val elapsedToday = session.totalWorkTime + if (isWorking) (now - session.lastStateChangeTime) else 0L
             val targetMs = (session.targetHours * 3600 * 1000).toLong()
             val timeLeftMs = (targetMs - elapsedToday).coerceAtLeast(0L)
+            val hasReachedDailyLimit = hasReachedDailyLimitToday(context)
 
             // UI State
             if (isWorking) {
@@ -115,7 +148,12 @@ class TimeTrackerWidgetProvider : AppWidgetProvider() {
                 views.setTextColor(R.id.tv_widget_status, 0xFF6B7280.toInt())
             }
             
-            views.setTextViewText(R.id.tv_widget_time_left, formatTimeLeft(timeLeftMs))
+            if (hasReachedDailyLimit) {
+                views.setViewVisibility(R.id.tv_widget_time_left, View.GONE)
+            } else {
+                views.setViewVisibility(R.id.tv_widget_time_left, View.VISIBLE)
+                views.setTextViewText(R.id.tv_widget_time_left, formatTimeLeft(timeLeftMs))
+            }
 
             // Toggle pending intent (Pill only)
             val intent = Intent(context, TimeTrackerWidgetProvider::class.java).apply {
@@ -145,6 +183,18 @@ class TimeTrackerWidgetProvider : AppWidgetProvider() {
             val hours = totalMinutes / 60
             val minutes = totalMinutes % 60
             return "${hours}h ${minutes}m left"
+        }
+
+        private fun hasReachedDailyLimitToday(context: Context): Boolean {
+            val today = SimpleDateFormat(
+                "yyyy-MM-dd",
+                java.util.Locale.getDefault()
+            ).format(java.util.Date())
+            val prefs = context.applicationContext.getSharedPreferences(
+                "time_tracker_prefs",
+                Context.MODE_PRIVATE
+            )
+            return prefs.getString("targetReachedDate", "") == today
         }
     }
 }
