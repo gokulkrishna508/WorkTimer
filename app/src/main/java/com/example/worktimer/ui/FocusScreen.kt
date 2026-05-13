@@ -195,16 +195,21 @@ private fun CircularTimerSection(uiState: TimeTrackerUiState) {
         )
 
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            val targetMs = (uiState.targetHours * 3600 * 1000).toLong()
+            val remainingMs = (targetMs - uiState.totalWorkTodayMillis).coerceAtLeast(0L)
+            
             Text(
-                text = "CURRENT SESSION",
+                text = if (uiState.isOvertime) "OVERTIME" else "REMAINING TIME",
                 color = TextSecondary,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 1.sp
             )
             Spacer(modifier = Modifier.height(6.dp))
+            val timeToDisplay = if (uiState.isOvertime) uiState.overtimeMillis else remainingMs
+            val timeText = if (uiState.isOvertime) "+${formatTime(timeToDisplay)}" else formatTime(timeToDisplay)
             Text(
-                text = formatTime(uiState.currentSessionMillis),
+                text = timeText,
                 fontSize = 44.sp,
                 fontWeight = FontWeight.Bold,
                 color = if (uiState.isOvertime) OvertimeRose else TextPrimary,

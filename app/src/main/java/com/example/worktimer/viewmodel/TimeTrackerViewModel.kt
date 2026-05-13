@@ -58,8 +58,7 @@ class TimeTrackerViewModel(application: Application) : AndroidViewModel(applicat
                 if (shouldCheckLimit) {
                     lastLimitCheckAt = now
                 }
-                
-                delay(if (repository.liveSession.value.state == TimerState.STOPPED) 60_000L else 1_000L)
+                delay(1000L)
             }
         }
     }
