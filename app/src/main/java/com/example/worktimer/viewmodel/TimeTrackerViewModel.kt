@@ -113,6 +113,17 @@ class TimeTrackerViewModel(application: Application) : AndroidViewModel(applicat
         }
         val hasReachedTarget = targetMs > 0L && totalWorkToday >= targetMs
 
+        val remainingMs = (targetMs - totalWorkToday).coerceAtLeast(0L)
+        val isTargetReached = totalWorkToday >= targetMs
+        
+        val completionTimeMillis = if (isTargetReached) {
+            // Use the actual event time if available, or just guess based on overtime
+            val eventTime = repository.targetReachedEventTime.value
+            if (eventTime > 0) eventTime else (realNow - overtimeMillis)
+        } else {
+            realNow + remainingMs
+        }
+
         TimeTrackerUiState(
             state = live.state,
             currentSessionMillis = currentSessionMillis,
@@ -125,7 +136,9 @@ class TimeTrackerViewModel(application: Application) : AndroidViewModel(applicat
             overtimeMillis = overtimeMillis,
             isOvertime = overtimeMillis > 0L,
             hasReachedTarget = hasReachedTarget,
-            todaySessionCount = (dbSession?.sessionCount ?: 0) + if (live.state != TimerState.STOPPED) 1 else 0
+            todaySessionCount = (dbSession?.sessionCount ?: 0) + if (live.state != TimerState.STOPPED) 1 else 0,
+            completionTimeMillis = completionTimeMillis,
+            isTargetCompletionTimeEstimated = !isTargetReached
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TimeTrackerUiState())
 
@@ -220,7 +233,9 @@ data class TimeTrackerUiState(
     val overtimeMillis: Long = 0L,
     val isOvertime: Boolean = false,
     val hasReachedTarget: Boolean = false,
-    val todaySessionCount: Int = 0
+    val todaySessionCount: Int = 0,
+    val completionTimeMillis: Long = 0L,
+    val isTargetCompletionTimeEstimated: Boolean = true
 )
 
 data class DayData(

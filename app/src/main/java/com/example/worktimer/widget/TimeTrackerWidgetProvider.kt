@@ -152,10 +152,14 @@ class TimeTrackerWidgetProvider : AppWidgetProvider() {
                 views.setTextColor(R.id.tv_widget_status, 0xFF6B7280.toInt())
             }
             
-            if (elapsedToday >= targetMs) {
-                views.setViewVisibility(R.id.tv_widget_time_left, View.GONE)
+            views.setViewVisibility(R.id.tv_widget_time_left, View.VISIBLE)
+            if (isOvertime) {
+                views.setTextViewText(R.id.tv_widget_time_left, formatOvertime(displayMs))
+                views.setTextColor(R.id.tv_widget_time_left, 0xFFEF5350.toInt()) // Red for overtime
+            } else if (elapsedToday >= targetMs) {
+                views.setTextViewText(R.id.tv_widget_time_left, "GOAL REACHED")
+                views.setTextColor(R.id.tv_widget_time_left, 0xFF2E7D32.toInt()) // Green for goal
             } else {
-                views.setViewVisibility(R.id.tv_widget_time_left, View.VISIBLE)
                 views.setTextViewText(R.id.tv_widget_time_left, formatTimeLeft(displayMs))
                 views.setTextColor(R.id.tv_widget_time_left, 0xFF1A1D26.toInt()) // Default color
             }

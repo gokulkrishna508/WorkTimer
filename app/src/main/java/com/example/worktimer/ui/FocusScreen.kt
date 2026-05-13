@@ -34,6 +34,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.worktimer.data.TimerState
 import com.example.worktimer.viewmodel.TimeTrackerUiState
 import com.example.worktimer.viewmodel.TimeTrackerViewModel
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 // ──────────────────────────────────────────
 // Colours
@@ -215,7 +218,20 @@ private fun CircularTimerSection(uiState: TimeTrackerUiState) {
                 color = if (uiState.isOvertime) OvertimeRose else TextPrimary,
                 letterSpacing = (-1).sp
             )
-            Spacer(modifier = Modifier.height(6.dp))
+            
+            if (uiState.completionTimeMillis > 0) {
+                Text(
+                    text = if (uiState.isTargetCompletionTimeEstimated) 
+                        "Finishes at ${formatClockTime(uiState.completionTimeMillis)}"
+                        else "Goal reached at ${formatClockTime(uiState.completionTimeMillis)}",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = if (uiState.isOvertime) OvertimeRose.copy(alpha = 0.8f) else PrimaryBlue.copy(alpha = 0.8f),
+                    modifier = Modifier.padding(vertical = 2.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
@@ -507,15 +523,21 @@ private fun TodayFocusCard(uiState: TimeTrackerUiState) {
             )
             Spacer(modifier = Modifier.height(6.dp))
             val targetLabel = uiState.targetHours.toString().removeSuffix(".0")
-            Text(
-                text = if (uiState.isOvertime) {
-                    "Overtime ${formatTime(uiState.overtimeMillis)} beyond ${targetLabel}h target"
-                } else {
-                    "$progressPercent% of ${targetLabel}h target completed"
-                },
-                fontSize = 12.sp,
-                color = if (uiState.isOvertime) OvertimeRose else TextSecondary
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (uiState.isOvertime) {
+                        "Overtime ${formatTime(uiState.overtimeMillis)} beyond ${targetLabel}h target"
+                    } else {
+                        "$progressPercent% of ${targetLabel}h target completed"
+                    },
+                    fontSize = 12.sp,
+                    color = if (uiState.isOvertime) OvertimeRose else TextSecondary
+                )
+            }
         }
     }
 }
@@ -590,4 +612,10 @@ fun formatTime(millis: Long): String {
     val m = (totalSeconds % 3600) / 60
     val s = totalSeconds % 60
     return String.format("%02d:%02d:%02d", h, m, s)
+}
+
+fun formatClockTime(millis: Long): String {
+    if (millis <= 0) return "--:--"
+    val date = Date(millis)
+    return SimpleDateFormat("h:mm a", Locale.getDefault()).format(date)
 }

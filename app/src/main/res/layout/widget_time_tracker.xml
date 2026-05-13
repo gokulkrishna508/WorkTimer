@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -57,7 +58,7 @@
         android:layout_below="@id/fl_toggle_container"
         android:layout_centerHorizontal="true"
         android:layout_marginTop="20dp"
-        android:text="TRACKING"
+        tools:text="TRACKING"
         android:textColor="#2962FF"
         android:textSize="12sp"
         android:textStyle="bold" />
@@ -69,9 +70,9 @@
         android:layout_below="@id/tv_widget_status"
         android:layout_centerHorizontal="true"
         android:layout_marginTop="4dp"
-        android:text="2h 18m left"
+        tools:text="2h 18m left"
         android:textColor="#1A1D26"
-        android:textSize="32sp"
+        android:textSize="26sp"
         android:textStyle="bold" />
 
 </RelativeLayout>
